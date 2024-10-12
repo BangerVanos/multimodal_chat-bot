@@ -159,3 +159,12 @@ print(response.content)
 # query = "Tell me a joke"
 # response = chatbot(query)
 # print(response)
+
+
+# import speech_recognition as sr
+
+# recognizer = sr.Recognizer()
+# text = recognizer.recognize_google(audio)
+
+
+
