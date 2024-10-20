@@ -68,11 +68,11 @@ def render_chat_layout() -> None:
                                                on_change=change_audio_recorder_status, args=(True,))       
     with chat_input_col:
         chat_input = st.chat_input(placeholder='Type your prompt here')    
-    if audio_info := st.session_state.get('audio_recorder') and st.session_state['audio_recorded']:
+    if (audio_info := st.session_state.get('audio_recorder')) and st.session_state['audio_recorded']:
         # -- UNCOMMENT ON PROD --
-        # recognition_result = speech_to_text(audio_info, st.session_state.get('language', 'ru'))
+        recognition_result = speech_to_text(audio_info, st.session_state.get('language', 'ru'))
         # -- COMMENT ON PROD --
-        recognition_result = '{"text": "ЗАТЫЧКА"}'       
+        # recognition_result = '{"text": "ЗАТЫЧКА"}'       
         chat_input = json.loads(recognition_result)['text']
         st.session_state['audio_recorded'] = False
 
@@ -87,9 +87,9 @@ def render_chat_layout() -> None:
         else:
             make_message(role='user', content=chat_input)
         # -- UNCOMMENT ON PROD --
-        # answer = get_answer(chat_input)
+        answer = get_answer(chat_input)
         # -- COMMENT ON PROD --
-        answer = 'ЭХО ОТВЕТ'
+        # answer = 'ЭХО ОТВЕТ'
         make_message(role='assistant', content=answer) # CHANGE TO NORMAL AI ANSWER
         last_user_msg = st.session_state['chat_messages'][-2]
         last_ai_msg = st.session_state['chat_messages'][-1]

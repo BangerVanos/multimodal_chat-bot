@@ -12,7 +12,7 @@ client = OpenAI(
 )
 
 def text_to_speech(text: str, voice: str = 'nova') -> str:
-    text = 'I' # COMMENT ON PROD
+    # text = 'I' # COMMENT ON PROD
     speech_file_path = Path(__file__).parent / "speech.mp3"
     response = client.audio.speech.create(
         model="tts-openai/tts-1",
