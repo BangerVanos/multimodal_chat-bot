@@ -1,5 +1,6 @@
 import streamlit as st
 from audiorecorder import audiorecorder
+from audio_recorder_streamlit import audio_recorder
 import json
 from typing import Literal
 from PIL import Image
@@ -8,6 +9,9 @@ import base64
 from st_copy_to_clipboard import st_copy_to_clipboard
 from MultimodalChatbot.backend.tts import text_to_speech
 from MultimodalChatbot.backend.stt import speech_to_text
+from MultimodalChatbot.backend.prompt_handler import get_answer
+from datetime import datetime
+
 
 
 st.set_page_config(page_title='Multimodal chat', layout='wide')
@@ -15,12 +19,15 @@ NO_AUDIO_STR = b'RIFF,\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x02\x00\x80\x
 
 
 SUPPORTED_LANGUAGES = {
-    'eng'
+    'ru': 'Русский',
+    'en': 'English',    
 }
 
 
 if not 'chat_messages' in st.session_state:
     st.session_state['chat_messages'] = []
+if not 'audio_recorded' in st.session_state:
+    st.session_state['audio_recorded'] = False
 
 
 def make_message(role: Literal['system', 'user', 'assistant'], content: str) -> None:
@@ -30,8 +37,7 @@ def make_message(role: Literal['system', 'user', 'assistant'], content: str) -> 
             'content': content
         }
     )
-    print(f'New {role} message!')
-
+    # print(f'New {role} message!')
 
 def get_image_base_64(raw_image: Image):
     buffer = BytesIO()
@@ -39,30 +45,38 @@ def get_image_base_64(raw_image: Image):
     img_bytes = buffer.getvalue()
     return base64.b64encode(img_bytes).decode('utf-8')
 
-def render_settings_layout() -> None:
-    with st.sidebar:
-        st.selectbox('Choose language')
+def change_audio_recorder_status(status: bool) -> None:
+    st.session_state['audio_recorded'] = status
 
 def render_chat_layout() -> None:
-    messages = st.container(height=750)    
-    img_upload_col, audio_record_col, chat_input_col = st.columns([1, 1, 20])
-    with img_upload_col:
-        with st.popover(label='', icon=':material/upload:'):
-            uploaded_image = st.file_uploader(label='Upload images', key='img_uploader',
-                                              type=['jpeg', 'jpg', 'png'], accept_multiple_files=False)
-    with audio_record_col:
-        audio_info = audiorecorder(key='voice', start_prompt='⏺️', stop_prompt='⏹️',
-                                   show_visualizer=True)
-    with chat_input_col:
-        chat_input = st.chat_input(placeholder='Type your prompt here')
+    # Render previous messages    
+    messages = st.container(height=750)
     for msg_ind, message in enumerate(st.session_state['chat_messages']):
         with messages.chat_message(name=message['role']):
             st.markdown(f'{message["content"]}')            
             render_chat_buttons(msg_ind, message["content"])
-    if len(audio_info) > 0:  
-        # recognition_result = speech_to_text(audio_info.export().read(), 'ru')
-        recognition_result = '{"text": "ЗАТЫЧКА"}'
-        chat_input = json.loads(recognition_result)['text']     
+
+    # Render chat input    
+    img_upload_col, audio_record_col, chat_input_col = st.columns([1, 3, 20])
+    chat_input = None
+    with img_upload_col:
+        with st.popover(label='', icon=':material/upload:'):
+            uploaded_image = st.file_uploader(label='Upload images', key='img_uploader',
+                                              type=['jpeg', 'jpg', 'png'], accept_multiple_files=False)
+    with audio_record_col:        
+        recorder = st.experimental_audio_input(label='Record audio', key='audio_recorder', label_visibility='collapsed',
+                                               on_change=change_audio_recorder_status, args=(True,))       
+    with chat_input_col:
+        chat_input = st.chat_input(placeholder='Type your prompt here')    
+    if audio_info := st.session_state.get('audio_recorder') and st.session_state['audio_recorded']:
+        # -- UNCOMMENT ON PROD --
+        # recognition_result = speech_to_text(audio_info, st.session_state.get('language', 'ru'))
+        # -- COMMENT ON PROD --
+        recognition_result = '{"text": "ЗАТЫЧКА"}'       
+        chat_input = json.loads(recognition_result)['text']
+        st.session_state['audio_recorded'] = False
+
+    # Handling chat input      
     if chat_input:        
         if uploaded_image:
             img_type = uploaded_image.type
@@ -72,7 +86,11 @@ def render_chat_layout() -> None:
             uploaded_image = None
         else:
             make_message(role='user', content=chat_input)
-        make_message(role='assistant', content='ECHO!!!') # CHANGE TO NORMAL AI ANSWER
+        # -- UNCOMMENT ON PROD --
+        # answer = get_answer(chat_input)
+        # -- COMMENT ON PROD --
+        answer = 'ЭХО ОТВЕТ'
+        make_message(role='assistant', content=answer) # CHANGE TO NORMAL AI ANSWER
         last_user_msg = st.session_state['chat_messages'][-2]
         last_ai_msg = st.session_state['chat_messages'][-1]
 
@@ -84,7 +102,7 @@ def render_chat_layout() -> None:
         # RENDER NEW AI MESSAGE 
         with messages.chat_message(last_ai_msg['role']):
             st.markdown(f'{last_ai_msg["content"]}')            
-            render_chat_buttons(len(st.session_state['chat_messages']) - 1, last_ai_msg['content'])           
+            render_chat_buttons(len(st.session_state['chat_messages']) - 1, last_ai_msg['content'])       
         
 
 def render_chat_buttons(msg_index: int, copy_text: str) -> None:
@@ -98,12 +116,32 @@ def render_chat_buttons(msg_index: int, copy_text: str) -> None:
         # st.button(label='', key=f'copy_{msg_index}', icon=':material/content_copy:',
         #           help='Copy message text')
 
-def voice_message(msg_index: int) -> None:
+def render_settings_layout() -> None:    
+    st.write('### Settings')
+    st.selectbox('Language', options=SUPPORTED_LANGUAGES.keys(),
+                 format_func=lambda o: SUPPORTED_LANGUAGES.get(o, 'ru'),
+                 help='Language choise affects speech-to-text model',
+                 key='language')
+    st.selectbox('Voice', options=['nova', 'alloy', 'echo', 'fable', 'onyx', 'shimmer'],
+                 format_func=lambda o: o.capitalize(),
+                 help='Choose voice of text to speech model',
+                 key='tts_voice')
+        # alloy, echo, fable, onyx, nova и shimmer
+
+def voice_message(msg_index: int) -> None:    
     text = st.session_state['chat_messages'][msg_index]['content']
-    audio_bytes = text_to_speech(text)        
+    audio_bytes = text_to_speech(text, st.session_state.get('tts_voice', 'nova'))        
     b64 = base64.b64encode(audio_bytes.content).decode()
     md = f'<audio autoplay="true" src="data:audio/wav;base64,{b64}">'
-    st.markdown(md, unsafe_allow_html=True)
+    st.markdown(md, unsafe_allow_html=True)    
 
-render_chat_layout() 
+
+def main_view() -> None:
+    chat_layout_col, settings_layout_col = st.columns([5, 1])
+    with settings_layout_col:
+        render_settings_layout()
+    with chat_layout_col:
+        render_chat_layout()
     
+
+main_view()
