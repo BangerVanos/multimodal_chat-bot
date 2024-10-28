@@ -9,7 +9,8 @@ import base64
 from st_copy_to_clipboard import st_copy_to_clipboard
 from MultimodalChatbot.backend.tts import text_to_speech
 from MultimodalChatbot.backend.stt import speech_to_text
-from MultimodalChatbot.backend.prompt_handler import get_answer
+# from MultimodalChatbot.backend.prompt_handler import get_answer
+from MultimodalChatbot.backend.langgraph_agents import get_answer, image_recognition
 from datetime import datetime
 
 
@@ -81,13 +82,17 @@ def render_chat_layout() -> None:
         if uploaded_image:
             img_type = uploaded_image.type
             raw_image = Image.open(uploaded_image)
-            image_str = f'![{uploaded_image.name}](data:{img_type};base64,{get_image_base_64(raw_image)})'            
+            image_str = f'![{uploaded_image.name}](data:{img_type};base64,{get_image_base_64(raw_image)})'
+            image_data = f'data:{img_type};base64,{get_image_base_64(raw_image)}'            
             make_message(role='user', content=f'{chat_input}\n\n{image_str}')
             uploaded_image = None
+            has_image = True            
         else:
+            has_image = False
             make_message(role='user', content=chat_input)
+            prompt = chat_input
         # -- UNCOMMENT ON PROD --
-        answer = get_answer(chat_input)
+        answer = get_answer(chat_input) if not has_image else image_recognition(chat_input, image_data)        
         # -- COMMENT ON PROD --
         # answer = 'ЭХО ОТВЕТ'
         make_message(role='assistant', content=answer) # CHANGE TO NORMAL AI ANSWER
