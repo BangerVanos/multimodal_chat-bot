@@ -92,7 +92,8 @@ def render_chat_layout() -> None:
             make_message(role='user', content=chat_input)
             prompt = chat_input
         # -- UNCOMMENT ON PROD --
-        answer = get_answer(chat_input) if not has_image else image_recognition(chat_input, image_data)        
+        answer = get_answer(chat_input) if not has_image else image_recognition(chat_input, image_data)
+        print(answer)        
         # -- COMMENT ON PROD --
         # answer = 'ЭХО ОТВЕТ'
         make_message(role='assistant', content=answer) # CHANGE TO NORMAL AI ANSWER
@@ -101,12 +102,12 @@ def render_chat_layout() -> None:
 
         # RENDER NEW USER MESSAGE        
         with messages.chat_message(last_user_msg['role']):
-            st.markdown(f'{last_user_msg["content"]}')            
+            st.markdown(f'{last_user_msg["content"]}', unsafe_allow_html=True)            
             render_chat_buttons(len(st.session_state['chat_messages']) - 2, last_user_msg['content'])
 
         # RENDER NEW AI MESSAGE 
         with messages.chat_message(last_ai_msg['role']):
-            st.markdown(f'{last_ai_msg["content"]}')            
+            st.markdown(f'{last_ai_msg["content"]}', unsafe_allow_html=True)            
             render_chat_buttons(len(st.session_state['chat_messages']) - 1, last_ai_msg['content'])       
         
 

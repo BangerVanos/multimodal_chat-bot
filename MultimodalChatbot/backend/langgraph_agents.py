@@ -10,6 +10,8 @@ import time
 import requests
 from geopy.geocoders import Nominatim
 import yfinance as yf
+import base64
+import os
 
 
 load_dotenv()
@@ -32,15 +34,32 @@ load_dotenv()
 
 @tool
 def image_generation(query: str):
-    """Call to generate images by text prompt"""
+    """Call to generate images by text prompt. Returns HTML img tag with image path as source"""
+    print('IMG GENERATION')
+    img_generation_model = 'img-dummy/image'
     time.sleep(1.5)
     response_big = image_model.images.generate(
-        model="img-dummy/image",
+        model=img_generation_model,
         prompt=query,
         n=1,
-        size="1024x1024"
+        size="512x512",
+        response_format='url'
     )
-    return response_big.data[0].url
+    img_url = response_big.data[0].url
+    # img_data_binary = base64.b64decode(img_data)
+    # img_path = os.path.realpath(os.path.join(os.path.dirname(__file__), 'media/output_img.png'))
+    # img_path = img_path.replace(os.sep, '/')    
+    # with open(img_path, 'wb') as file:
+    #     file.write(img_data_binary)    
+    response = (
+        f'Here is your image of {query}!\n'
+        f'![{query}.png]({img_url})'
+    )
+    # response = (
+    #     f'Here is your image of {query}!\n'
+    #     f'<img src=file:///{img_path}>'
+    # )       
+    return response
 
 def image_recognition(prompt: str, image: str):
     print('Agent image recognition')
